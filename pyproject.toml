@@ -1,0 +1,36 @@
+[tool.poetry]
+name = "highlighter"
+version = "0.1.0"
+description = ""
+authors = ["Rex Wang <rexwangcc@gmail.com>"]
+license = "MIT"
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.11"
+requests = "^2.31.0"
+tqdm = "^4.66.4"
+pydantic-settings = "^2.2.1"
+
+[tool.poetry.group.dev.dependencies]
+black = "^24.4.2"
+isort = "^5.13.2"
+
+[tool.isort]
+profile = "black"
+
+[tool.black]
+line-length = 85
+target-version = ['py311']
+exclude = '''
+(
+  /(
+     chapter_9_advanced/torch_compile_debug
+    | code-highlighter
+  )/
+)
+'''
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
