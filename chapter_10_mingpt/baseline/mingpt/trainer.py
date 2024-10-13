@@ -60,7 +60,8 @@ class Trainer:
             callback(self)
 
     def prepare(self):
-        # setup the optimizer
+        # No.4 Enable Torch Compile
+        self.model = torch.compile(self.model, mode="reduce-overhead")
         self.optimizer = self.model.configure_optimizers(self.config)
 
         # setup the dataloader
