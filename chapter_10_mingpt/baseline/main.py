@@ -30,13 +30,13 @@ def get_config():
     C.model = GPT.get_default_config()
     C.model.model_type = 'gpt-mini'
 
-    # configs
-    #C.batch_size = 32
-    #C.num_workers = 0
-
     # trainer
     C.trainer = Trainer.get_default_config()
     C.trainer.learning_rate = 5e-4 # the model we're using is so small that we can go a bit faster
+
+    # configs
+    #C.trainer.batch_size = 32
+    #C.trainer.num_workers = 0
 
     return C
 
@@ -53,7 +53,7 @@ if __name__ == '__main__':
 
     # construct the training dataset
     text = open('input.txt', 'r').read() # don't worry we won't run out of file handles
-    train_dataset = CharDataset(config.data, text)
+    train_dataset = CharDataset(config.data, text, data_aug_chance=1.0) # use data_aug_chance = 1.0 for profiling
 
     # construct the model
     config.model.vocab_size = train_dataset.get_vocab_size()
@@ -71,17 +71,20 @@ if __name__ == '__main__':
     # profiler
     with profile(activities=[ProfilerActivity.CPU, ProfilerActivity.CUDA]) as prof:
         trainer.run(10)
+
+    # Profile for Original
     prof.export_chrome_trace(f"0_PROF_original.json")
     torch.cuda.synchronize()
 
     # evaluate time
     measured_runtimes = []
 
-    num_repeats = 20
+    num_samples = 10240
+    num_repeats = 5
     for i in range(num_repeats):
       start = time.perf_counter()
 
-      trainer.run_num_samples(8192)
+      trainer.run_num_samples(num_samples)
 
       torch.cuda.synchronize()
       end = time.perf_counter()
