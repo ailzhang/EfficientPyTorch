@@ -32,6 +32,8 @@ class Trainer:
     def __init__(self, config, model, train_dataset):
         self.config = config
         self.model = model
+        self.Gradient_Accumulate_Factor = 2
+        self.config.batch_size = self.config.batch_size // self.Gradient_Accumulate_Factor
         self.optimizer = None
         self.train_dataset = train_dataset
         self.callbacks = defaultdict(list)
@@ -86,7 +88,8 @@ class Trainer:
         iter_num = 0
         while True:
             for batch in self.train_loader:
-                with record_function(f"train_{iter_num}"):
+                self.model.zero_grad(set_to_none=True)
+                for i in range(self.Gradient_Accumulate_Factor):
                     batch = [t.to(self.device) for t in batch]
                     x, y = batch
 
@@ -96,11 +99,12 @@ class Trainer:
                     # backprop and update the parameters
                     self.model.zero_grad(set_to_none=True)
                     self.loss.backward()
-                    torch.nn.utils.clip_grad_norm_(self.model.parameters(), self.config.grad_norm_clip)
-                    self.optimizer.step()
 
                     self.trigger_callbacks('on_batch_end')
                     iter_num += 1
 
-                    if iter_num >= max_num_iters:
-                        return
+                torch.nn.utils.clip_grad_norm_(self.model.parameters(), self.config.grad_norm_clip)
+                self.optimizer.step()
+
+                if iter_num >= max_num_iters:
+                    return
