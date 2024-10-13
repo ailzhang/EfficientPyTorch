@@ -28,15 +28,15 @@ def get_config():
 
     # model
     C.model = GPT.get_default_config()
-    C.model.model_type = 'gpt-mini'
-
-    # configs
-    #C.batch_size = 32
-    #C.num_workers = 0
+    C.model.model_type = 'gpt2-large'
 
     # trainer
     C.trainer = Trainer.get_default_config()
     C.trainer.learning_rate = 5e-4 # the model we're using is so small that we can go a bit faster
+
+    # configs
+    C.trainer.batch_size = 32
+    C.trainer.num_workers = 4
 
     return C
 
@@ -68,20 +68,24 @@ if __name__ == '__main__':
     trainer.run(10)
     torch.cuda.synchronize()
 
-    # profiler
-    with profile(activities=[ProfilerActivity.CPU, ProfilerActivity.CUDA]) as prof:
-        trainer.run(10)
-    prof.export_chrome_trace(f"0_PROF_original.json")
-    torch.cuda.synchronize()
+    # Memory
+    MB = 1024 * 1024
+    print("Peak allocated VRAM: ", torch.cuda.max_memory_allocated() / MB, " MB")
+
+    # Profile Memory
+    torch.cuda.memory._record_memory_history()
+    trainer.run(1)
+    torch.cuda.memory._dump_snapshot("0_VRAM_Original.pickle")
 
     # evaluate time
     measured_runtimes = []
 
-    num_repeats = 20
+    num_samples = 1024
+    num_repeats = 5
     for i in range(num_repeats):
       start = time.perf_counter()
 
-      trainer.run_num_samples(8192)
+      trainer.run_num_samples(num_samples)
 
       torch.cuda.synchronize()
       end = time.perf_counter()
