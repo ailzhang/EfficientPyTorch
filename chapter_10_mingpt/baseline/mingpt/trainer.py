@@ -87,7 +87,8 @@ class Trainer:
         while True:
             for batch in self.train_loader:
                 with record_function(f"train_{iter_num}"):
-                    batch = [t.to(self.device) for t in batch]
+                    # No.3 non_blocking
+                    batch = [t.to(self.device, non_blocking=True) for t in batch]
                     x, y = batch
 
                     # forward the model

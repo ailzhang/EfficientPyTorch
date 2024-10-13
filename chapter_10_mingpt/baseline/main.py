@@ -75,7 +75,7 @@ if __name__ == '__main__':
         trainer.run(10)
 
     # Profile for Original
-    prof.export_chrome_trace(f"2_PROF_more_workers.json")
+    prof.export_chrome_trace(f"3_PROF_non_blocking.json")
     torch.cuda.synchronize()
 
     # evaluate time
