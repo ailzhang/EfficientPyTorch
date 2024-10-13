@@ -6,7 +6,7 @@ import time
 import numpy as np
 
 from mingpt.model import GPT
-from mingpt.trainer import Trainer
+from mingpt.trainer import Trainer, accelerator
 from mingpt.utils import set_seed, setup_logging, CfgNode as CN
 from mingpt.char_dataset import CharDataset
 
@@ -72,24 +72,19 @@ if __name__ == '__main__':
     MB = 1024 * 1024
     print("Peak allocated VRAM: ", torch.cuda.max_memory_allocated() / MB, " MB")
 
-    # Profile Memory
-    torch.cuda.memory._record_memory_history()
-    trainer.run(1)
-    torch.cuda.memory._dump_snapshot("3_VRAM_For_Loop.pickle")
-
     # evaluate time
     measured_runtimes = []
 
-    num_samples = 1024
+    num_samples = 1024 // accelerator.state.num_processes
     num_repeats = 5
     for i in range(num_repeats):
-      start = time.perf_counter()
+        start = time.perf_counter()
 
-      trainer.run_num_samples(num_samples)
+        trainer.run_num_samples(num_samples)
 
-      torch.cuda.synchronize()
-      end = time.perf_counter()
-      measured_runtimes.append(end - start)
+        torch.cuda.synchronize()
+        end = time.perf_counter()
+        measured_runtimes.append(end - start)
 
     average_runtime = sum(measured_runtimes) / len(measured_runtimes)
     print("Ave Runtime: ", average_runtime, " seconds")

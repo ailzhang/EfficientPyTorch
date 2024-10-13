@@ -11,6 +11,9 @@ from torch.utils.data.dataloader import DataLoader
 from mingpt.utils import CfgNode as CN
 from torch.profiler import profile, record_function, ProfilerActivity
 
+from accelerate import Accelerator
+accelerator = Accelerator()
+
 class Trainer:
 
     @staticmethod
@@ -39,10 +42,7 @@ class Trainer:
         self.callbacks = defaultdict(list)
 
         # determine the device we'll train on
-        if config.device == 'auto':
-            self.device = 'cuda' if torch.cuda.is_available() else 'cpu'
-        else:
-            self.device = config.device
+        self.device = accelerator.device
         self.model = self.model.to(self.device)
         print("running on device", self.device)
 
@@ -76,6 +76,7 @@ class Trainer:
         )
 
         self.model.train()
+        self.model, self.optimizer, self.train_loader = accelerator.prepare(self.model, self.optimizer, self.train_loader)
 
     def run_num_samples(self, num_samples):
         batch_size = self.config.batch_size
@@ -98,12 +99,13 @@ class Trainer:
 
                     # backprop and update the parameters
                     self.model.zero_grad(set_to_none=True)
-                    self.loss.backward()
+                    accelerator.backward(self.loss)
+
 
                     self.trigger_callbacks('on_batch_end')
                     iter_num += 1
 
-                torch.nn.utils.clip_grad_norm_(self.model.parameters(), self.config.grad_norm_clip)
+                accelerator.clip_grad_norm_(self.model.parameters(), self.config.grad_norm_clip)
                 self.optimizer.step()
 
                 if iter_num >= max_num_iters:
