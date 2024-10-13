@@ -36,7 +36,9 @@ def get_config():
 
     # No.1 larger batch size
     C.trainer.batch_size = 256
-    #C.trainer.num_workers = 0
+
+    # No.2 more workers
+    C.trainer.num_workers = 4
 
     return C
 
@@ -73,7 +75,7 @@ if __name__ == '__main__':
         trainer.run(10)
 
     # Profile for Original
-    prof.export_chrome_trace(f"1_PROF_larger_batch.json")
+    prof.export_chrome_trace(f"2_PROF_more_workers.json")
     torch.cuda.synchronize()
 
     # evaluate time
