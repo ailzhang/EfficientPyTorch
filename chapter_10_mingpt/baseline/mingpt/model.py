@@ -15,6 +15,7 @@ import torch.nn as nn
 from torch.nn import functional as F
 
 from mingpt.utils import CfgNode as CN
+from torch.utils.checkpoint import checkpoint, checkpoint_sequential
 
 # -----------------------------------------------------------------------------
 
@@ -268,7 +269,7 @@ class GPT(nn.Module):
         pos_emb = self.transformer.wpe(pos) # position embeddings of shape (1, t, n_embd)
         x = self.transformer.drop(tok_emb + pos_emb)
         for block in self.transformer.h:
-            x = block(x)
+            x = checkpoint(block, x)
         x = self.transformer.ln_f(x)
         logits = self.lm_head(x)
 

@@ -75,7 +75,7 @@ if __name__ == '__main__':
     # Profile Memory
     torch.cuda.memory._record_memory_history()
     trainer.run(1)
-    torch.cuda.memory._dump_snapshot("1_VRAM_Gradient_Accumulation.pickle")
+    torch.cuda.memory._dump_snapshot("2_VRAM_Checkpointing.pickle")
 
     # evaluate time
     measured_runtimes = []
