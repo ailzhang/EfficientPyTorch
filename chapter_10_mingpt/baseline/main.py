@@ -6,7 +6,7 @@ import time
 import numpy as np
 
 from mingpt.model import GPT
-from mingpt.trainer import Trainer
+from mingpt.trainer import Trainer, accelerator
 from mingpt.utils import set_seed, setup_logging, CfgNode as CN
 from mingpt.char_dataset import CharDataset
 
@@ -75,13 +75,15 @@ if __name__ == '__main__':
         trainer.run(10)
 
     # Profile for Original
-    prof.export_chrome_trace(f"5_PROF_AMP.json")
+    if accelerator.is_main_process:
+        prof.export_chrome_trace(f"6_PROF_DDP.json")
+
     torch.cuda.synchronize()
 
     # evaluate time
     measured_runtimes = []
 
-    num_samples = 10240
+    num_samples = 10240 // accelerator.state.num_processes
     num_repeats = 5
     for i in range(num_repeats):
       start = time.perf_counter()
@@ -92,6 +94,7 @@ if __name__ == '__main__':
       end = time.perf_counter()
       measured_runtimes.append(end - start)
 
-    average_runtime = sum(measured_runtimes) / len(measured_runtimes)
-    print("Ave Runtime: ", average_runtime, " seconds")
-    print("Std: ", np.std(measured_runtimes), " seconds")
+    if accelerator.is_main_process:
+        average_runtime = sum(measured_runtimes) / len(measured_runtimes)
+        print("Ave Runtime: ", average_runtime, " seconds")
+        print("Std: ", np.std(measured_runtimes), " seconds")

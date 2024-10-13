@@ -11,6 +11,9 @@ from torch.utils.data.dataloader import DataLoader
 from mingpt.utils import CfgNode as CN
 from torch.profiler import profile, record_function, ProfilerActivity
 
+from accelerate import Accelerator
+accelerator = Accelerator(mixed_precision='fp16')
+
 class Trainer:
 
     @staticmethod
@@ -37,10 +40,7 @@ class Trainer:
         self.callbacks = defaultdict(list)
 
         # determine the device we'll train on
-        if config.device == 'auto':
-            self.device = 'cuda' if torch.cuda.is_available() else 'cpu'
-        else:
-            self.device = config.device
+        self.device = accelerator.device
         self.model = self.model.to(self.device)
         print("running on device", self.device)
 
@@ -64,9 +64,6 @@ class Trainer:
         self.model = torch.compile(self.model, mode="reduce-overhead")
         self.optimizer = self.model.configure_optimizers(self.config)
 
-        # No.5 Enable AMP
-        self.scaler = torch.cuda.amp.GradScaler(enabled=True)
-
         # setup the dataloader
         self.train_loader = DataLoader(
             self.train_dataset,
@@ -78,6 +75,8 @@ class Trainer:
         )
 
         self.model.train()
+        self.model, self.optimizer, self.train_loader = accelerator.prepare(self.model, self.optimizer, self.train_loader)
+
 
     def run_num_samples(self, num_samples):
         batch_size = self.config.batch_size
@@ -96,19 +95,16 @@ class Trainer:
                     x, y = batch
 
                     # forward the model
-                    # No.4 Enable AMP
-                    with torch.autocast(device_type='cuda', dtype=torch.float16):
+                    with accelerator.autocast():
                         logits, self.loss = self.model(x, y)
 
                     # backprop and update the parameters
                     self.model.zero_grad(set_to_none=True)
 
                     # No.4 Enable AMP
-                    self.scaler.scale(self.loss).backward()
-                    self.scaler.unscale_(self.optimizer)
-                    torch.nn.utils.clip_grad_norm_(self.model.parameters(), self.config.grad_norm_clip)
-                    self.scaler.step(self.optimizer)
-                    self.scaler.update()
+                    accelerator.backward(self.loss)
+                    accelerator.clip_grad_norm_(self.model.parameters(), self.config.grad_norm_clip)
+                    self.optimizer.step()
 
                     self.trigger_callbacks('on_batch_end')
                     iter_num += 1
