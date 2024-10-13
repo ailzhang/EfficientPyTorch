@@ -64,6 +64,9 @@ class Trainer:
         self.model = torch.compile(self.model, mode="reduce-overhead")
         self.optimizer = self.model.configure_optimizers(self.config)
 
+        # No.5 Enable AMP
+        self.scaler = torch.cuda.amp.GradScaler(enabled=True)
+
         # setup the dataloader
         self.train_loader = DataLoader(
             self.train_dataset,
@@ -93,13 +96,19 @@ class Trainer:
                     x, y = batch
 
                     # forward the model
-                    logits, self.loss = self.model(x, y)
+                    # No.4 Enable AMP
+                    with torch.autocast(device_type='cuda', dtype=torch.float16):
+                        logits, self.loss = self.model(x, y)
 
                     # backprop and update the parameters
                     self.model.zero_grad(set_to_none=True)
-                    self.loss.backward()
+
+                    # No.4 Enable AMP
+                    self.scaler.scale(self.loss).backward()
+                    self.scaler.unscale_(self.optimizer)
                     torch.nn.utils.clip_grad_norm_(self.model.parameters(), self.config.grad_norm_clip)
-                    self.optimizer.step()
+                    self.scaler.step(self.optimizer)
+                    self.scaler.update()
 
                     self.trigger_callbacks('on_batch_end')
                     iter_num += 1
