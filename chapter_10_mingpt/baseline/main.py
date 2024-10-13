@@ -34,8 +34,8 @@ def get_config():
     C.trainer = Trainer.get_default_config()
     C.trainer.learning_rate = 5e-4 # the model we're using is so small that we can go a bit faster
 
-    # configs
-    #C.trainer.batch_size = 32
+    # No.1 larger batch size
+    C.trainer.batch_size = 256
     #C.trainer.num_workers = 0
 
     return C
@@ -73,7 +73,7 @@ if __name__ == '__main__':
         trainer.run(10)
 
     # Profile for Original
-    prof.export_chrome_trace(f"0_PROF_original.json")
+    prof.export_chrome_trace(f"1_PROF_larger_batch.json")
     torch.cuda.synchronize()
 
     # evaluate time
